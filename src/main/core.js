@@ -64,17 +64,7 @@ function attachComments(text, ast, opts) {
   return astComments;
 }
 
-function coreFormat(text, opts, addAlignmentSize) {
-  if (!text || !text.trim().length) {
-    return { formatted: "", cursorOffset: 0 };
-  }
-
-  addAlignmentSize = addAlignmentSize || 0;
-
-  const parsed = parser.parse(text, opts);
-  const ast = parsed.ast;
-  text = parsed.text;
-
+function handleParseResult(opts, text, ast, addAlignmentSize) {
   if (opts.cursorOffset >= 0) {
     const nodeResult = rangeUtil.findNodeAtOffset(ast, opts.cursorOffset, opts);
     if (nodeResult && nodeResult.node) {
@@ -181,6 +171,24 @@ function coreFormat(text, opts, addAlignmentSize) {
   return { formatted: result.formatted };
 }
 
+function coreFormat(text, opts, addAlignmentSize) {
+  if (!text || !text.trim().length) {
+    return { formatted: "", cursorOffset: 0 };
+  }
+
+  addAlignmentSize = addAlignmentSize || 0;
+
+  const parsed = parser.parse(text, opts);
+  if (parsed.ast instanceof Promise) {
+    return parsed.ast.then(value =>
+      handleParseResult(opts, text, value, addAlignmentSize)
+    );
+  }
+  const ast = parsed.ast;
+  text = parsed.text;
+  return handleParseResult(opts, text, ast, addAlignmentSize);
+}
+
 function formatRange(text, opts) {
   const parsed = parser.parse(text, opts);
   const ast = parsed.ast;
@@ -277,6 +285,17 @@ function formatRange(text, opts) {
   return { formatted, cursorOffset };
 }
 
+/**
+ * Insert the UTF8BOM at the beginning of the formatted text.
+ */
+function handleUnicodeBOM(result, hasCursor) {
+  result.formatted = String.fromCharCode(UTF8BOM) + result.formatted;
+
+  if (hasCursor) {
+    result.cursorOffset++;
+  }
+}
+
 function format(text, opts) {
   const selectedParser = parser.resolveParser(opts);
   const hasPragma = !selectedParser.hasPragma || selectedParser.hasPragma(text);
@@ -354,11 +373,10 @@ function format(text, opts) {
         );
 
   if (hasUnicodeBOM) {
-    result.formatted = String.fromCharCode(UTF8BOM) + result.formatted;
-
-    if (hasCursor) {
-      result.cursorOffset++;
+    if (result instanceof Promise) {
+      return result.then(value => handleUnicodeBOM(value, hasCursor));
     }
+    handleUnicodeBOM(result, hasCursor);
   }
 
   return result;

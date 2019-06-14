@@ -38,6 +38,10 @@ module.exports = {
   formatWithCursor,
 
   format(text, opts) {
+    const formatted = formatWithCursor(text, opts);
+    if (formatted instanceof Promise) {
+      return formatted.then(value => value.formatted);
+    }
     return formatWithCursor(text, opts).formatted;
   },
 

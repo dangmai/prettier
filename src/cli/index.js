@@ -60,17 +60,16 @@ function run(args) {
       context.argv["stdin"] || (!hasFilePatterns && !process.stdin.isTTY);
 
     if (context.argv["find-config-path"]) {
-      util.logResolvedConfigPathOrDie(context);
+      return util.logResolvedConfigPathOrDie(context);
     } else if (context.argv["file-info"]) {
-      util.logFileInfoOrDie(context);
+      return util.logFileInfoOrDie(context);
     } else if (useStdin) {
-      util.formatStdin(context);
+      return util.formatStdin(context);
     } else if (hasFilePatterns) {
-      util.formatFiles(context);
-    } else {
-      context.logger.log(util.createUsage(context));
-      process.exit(1);
+      return util.formatFiles(context);
     }
+    context.logger.log(util.createUsage(context));
+    process.exit(1);
   } catch (error) {
     context.logger.error(error.message);
     process.exit(1);
